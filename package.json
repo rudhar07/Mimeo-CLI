@@ -16,5 +16,9 @@
     "react-pattern"
   ],
   "author": "Rudhar Bajaj",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "openai": "^6.36.0"
+  }
 }
