@@ -10,7 +10,7 @@ Mimeo is a CLI tool that takes a user's description of a website, reasons throug
 - **Agentic reasoning loop** — the agent follows a structured `START → THINK → TOOL → OBSERVE → OUTPUT` cycle, breaking complex tasks into manageable steps
 - **Real file generation** — writes actual `.html`, `.css`, and `.js` files to disk
 - **Multiple tools** — file creation, directory management, file reading, shell commands
-- **Multi-provider support** — works with OpenAI (GPT-4.1), Google Gemini, or any OpenAI-compatible API
+- **Multi-provider support** — works with OpenRouter, OpenAI, Google Gemini, or any OpenAI-compatible API
 - **Live progress** — watch the agent think, plan, and build in real-time with color-coded output
 
 ## 🚀 Getting Started
@@ -18,7 +18,7 @@ Mimeo is a CLI tool that takes a user's description of a website, reasons throug
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/) v18 or later
-- An API key from [OpenAI](https://platform.openai.com/api-keys) or [Google AI Studio](https://aistudio.google.com/apikey) (free tier available)
+- An API key from [OpenRouter](https://openrouter.ai/keys), [OpenAI](https://platform.openai.com/api-keys), or [Google AI Studio](https://aistudio.google.com/apikey)
 
 ### Installation
 
@@ -36,13 +36,13 @@ cp .env.example .env
 
 Edit `.env` and add your API key. The file supports three providers — pick one:
 
-**OpenRouter (free tier, recommended):**
+**OpenRouter (recommended — single key, hundreds of models):**
 ```env
 OPENAI_API_KEY=your_openrouter_key_here
-OPENAI_MODEL=deepseek/deepseek-chat-v3.1:free
+OPENAI_MODEL=gpt-4.1-mini
 OPENAI_BASE_URL=https://openrouter.ai/api/v1
 ```
-Get a key at [openrouter.ai/keys](https://openrouter.ai/keys). Free tier allows ~50 requests/day without credit (1000/day with $10+ topped up).
+Get a key at [openrouter.ai/keys](https://openrouter.ai/keys). One key gives you access to OpenAI, Anthropic, Google, Meta, DeepSeek, and many more — swap models by editing `OPENAI_MODEL`.
 
 **Google Gemini (free tier):**
 ```env
@@ -51,7 +51,7 @@ OPENAI_MODEL=gemini-flash-latest
 OPENAI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
 ```
 
-**OpenAI (paid):**
+**OpenAI (direct):**
 ```env
 OPENAI_API_KEY=your_openai_key_here
 OPENAI_MODEL=gpt-4.1-mini
@@ -67,10 +67,10 @@ npm start
 You'll see the Mimeo CLI banner. Type your request:
 
 ```
-you > Clone the Scaler Academy website with a header, hero section, and footer
+you > Build a landing page for a coffee subscription service with a header, hero, and footer
 ```
 
-The agent will reason through the task, create files, and produce a working webpage.
+The agent will reason through the task, create files, and produce a working webpage you can open directly in your browser.
 
 ### Commands
 
