@@ -4,6 +4,9 @@ import fs from "fs/promises";
 import path from "path";
 import { exec } from "child_process";
 import { promisify } from "util";
+import readline from "readline/promises";
+import { stdin as input, stdout as output } from "process";
+import chalk from "chalk";
 
 const execAsync = promisify(exec);
 
@@ -68,11 +71,11 @@ const tools = {
 
 // ─── System prompt ────────────────────────────────────────────────
 const toolsListing = Object.entries(tools)
-  .map(([name, t], i) => `${i + 1}. ${name}${t.schema ? `  args: ${t.schema}` : ""}\n   ${t.description}`)
+  .map(([name, t], i) => `${i + 1}. ${name}  args: ${t.schema}\n   ${t.description}`)
   .join("\n\n");
 
 const SYSTEM_PROMPT = `
-You are an AI assistant that solves tasks by reasoning step-by-step in a structured loop.
+You are Mimeo, an AI assistant that solves tasks by reasoning step-by-step in a structured loop.
 
 Each reply MUST be a single JSON object — no surrounding prose, no markdown fences.
 
@@ -85,11 +88,11 @@ Schema:
 }
 
 Steps:
-- START   : Restate the goal. Use exactly once at the start.
+- START   : Restate the goal. Use exactly once at the start of each new user request.
 - THINK   : Reason about the next action. Produce 2-4 THINK steps before acting.
 - TOOL    : Request a tool call.
 - OBSERVE : System gives you the tool's result. Never produce yourself.
-- OUTPUT  : Final answer to the user. Use exactly once at the end.
+- OUTPUT  : Final answer to the user. Use exactly once at the end of the request.
 
 Available tools:
 
@@ -97,7 +100,7 @@ ${toolsListing}
 
 Rules:
 1. One JSON object per reply.
-2. Always begin with START, end with OUTPUT.
+2. Always begin a request with START, end with OUTPUT.
 3. Use 2-4 THINK steps before each TOOL call.
 4. Prefer dedicated tools (writeFile, makeDir, readFile, listFiles) over executeCommand.
 5. Use relative paths only — no leading "/" or "C:\\". All files write into the current working directory.
@@ -107,10 +110,9 @@ Rules:
 Example:
 user: Create a folder named "demo" and write hello.txt inside it with the text "hi".
 assistant: { "step": "START", "content": "User wants a folder 'demo' containing hello.txt with 'hi'." }
-assistant: { "step": "THINK", "content": "writeFile creates parent dirs automatically, so I can do this in a single call." }
+assistant: { "step": "THINK", "content": "writeFile creates parent dirs automatically, so I can do this in one call." }
 assistant: { "step": "TOOL", "tool_name": "writeFile", "tool_args": { "path": "demo/hello.txt", "content": "hi" } }
-[system observe will arrive here]
-assistant: { "step": "OUTPUT", "content": "Created demo/hello.txt with the text 'hi'." }
+assistant: { "step": "OUTPUT", "content": "Created demo/hello.txt with 'hi'." }
 `.trim();
 
 // ─── Helpers ──────────────────────────────────────────────────────
@@ -131,21 +133,27 @@ function truncate(str, max = 200) {
   return str.length > max ? `${str.slice(0, max)}… (${str.length} chars)` : str;
 }
 
+const stepStyles = {
+  START:   chalk.bold.cyan,
+  THINK:   chalk.yellow,
+  TOOL:    chalk.magenta,
+  OBSERVE: chalk.blue,
+  OUTPUT:  chalk.bold.green,
+};
+
 function logStep(parsed) {
-  const labels = {
-    START: "[START ]",
-    THINK: "[THINK ]",
-    TOOL: "[TOOL  ]",
-    OBSERVE: "[OBSERV]",
-    OUTPUT: "[OUTPUT]",
-  };
-  const label = labels[parsed.step] ?? `[${parsed.step}]`;
+  const color = stepStyles[parsed.step] ?? chalk.white;
+  const label = color(`[${(parsed.step ?? "?").padEnd(6)}]`);
   if (parsed.step === "TOOL") {
     const argsStr = JSON.stringify(parsed.tool_args ?? {});
-    console.log(`${label} ${parsed.tool_name}(${truncate(argsStr, 120)})`);
+    console.log(`${label} ${chalk.bold(parsed.tool_name)} ${chalk.dim(truncate(argsStr, 120))}`);
   } else {
     console.log(`${label} ${truncate(parsed.content ?? "")}`);
   }
+}
+
+function logObserve(result) {
+  console.log(`${chalk.blue("[OBSERV]")} ${chalk.dim(truncate(result))}`);
 }
 
 async function runTool(parsed) {
@@ -164,13 +172,8 @@ async function runTool(parsed) {
   }
 }
 
-// ─── Agent loop ───────────────────────────────────────────────────
-async function runAgent(userInput) {
-  const messages = [
-    { role: "system", content: SYSTEM_PROMPT },
-    { role: "user", content: userInput },
-  ];
-
+// ─── Agent turn (one user request → run until OUTPUT) ─────────────
+async function runAgentTurn(messages) {
   const MAX_ITERATIONS = 50;
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
@@ -184,7 +187,7 @@ async function runAgent(userInput) {
     const parsed = safeParse(raw);
 
     if (!parsed) {
-      console.error("Model returned non-JSON. Aborting.\nRaw:", raw);
+      console.error(chalk.red("Model returned non-JSON. Aborting turn.\nRaw:"), raw);
       return;
     }
 
@@ -199,28 +202,74 @@ async function runAgent(userInput) {
         role: "user",
         content: JSON.stringify({ step: "OBSERVE", content: observation }),
       });
-      console.log(`[OBSERV] ${truncate(observation)}`);
+      logObserve(observation);
     }
   }
 
-  console.error(`Hit ${MAX_ITERATIONS} iteration cap without OUTPUT.`);
+  console.error(chalk.red(`Hit ${MAX_ITERATIONS} iteration cap without OUTPUT.`));
 }
 
-// ─── Entry point ──────────────────────────────────────────────────
+function printError(err) {
+  if (err.status === 503) {
+    console.error(chalk.red("Provider overloaded (503). Retry, or switch model in .env."));
+  } else if (err.status === 401) {
+    console.error(chalk.red("Auth failed (401). Check OPENAI_API_KEY in .env."));
+  } else {
+    console.error(chalk.red(`Request failed: ${err.message}`));
+  }
+}
+
+// ─── Banner ───────────────────────────────────────────────────────
+function banner() {
+  const title = chalk.bold.cyan("Mimeo CLI");
+  const subtitle = chalk.dim("conversational website-cloning agent");
+  console.log("");
+  console.log(`  ${title}  ${subtitle}`);
+  console.log(chalk.dim(`  model: ${model}`));
+  console.log(chalk.dim('  type your request, or "exit" to quit'));
+  console.log("");
+}
+
+// ─── Entry point: interactive REPL ────────────────────────────────
 async function main() {
-  try {
-    await runAgent(
-      'Create a folder named "demo_test" and write a file hello.txt inside it containing the text "hello world from the agent".',
-    );
-  } catch (err) {
-    if (err.status === 503) {
-      console.error("Provider overloaded (503). Retry, or switch model in .env.");
-    } else if (err.status === 401) {
-      console.error("Auth failed (401). Check OPENAI_API_KEY in .env.");
-    } else {
-      console.error(`Request failed: ${err.message}`);
+  banner();
+  const rl = readline.createInterface({ input, output });
+
+  const messages = [{ role: "system", content: SYSTEM_PROMPT }];
+
+  rl.on("SIGINT", () => {
+    console.log(chalk.dim("\nbye."));
+    rl.close();
+    process.exit(0);
+  });
+
+  while (true) {
+    let userInput;
+    try {
+      userInput = (await rl.question(chalk.bold.green("you > "))).trim();
+    } catch {
+      return;
     }
-    process.exit(1);
+    if (!userInput) continue;
+    if (["exit", "quit", ":q"].includes(userInput.toLowerCase())) {
+      console.log(chalk.dim("bye."));
+      rl.close();
+      return;
+    }
+    if (userInput.toLowerCase() === "/clear") {
+      messages.length = 1;
+      console.log(chalk.dim("conversation cleared."));
+      continue;
+    }
+
+    messages.push({ role: "user", content: userInput });
+
+    try {
+      await runAgentTurn(messages);
+    } catch (err) {
+      printError(err);
+    }
+    console.log("");
   }
 }
 
