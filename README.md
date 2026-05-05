@@ -34,12 +34,20 @@ npm install
 cp .env.example .env
 ```
 
-Edit `.env` and add your API key. The file supports two providers:
+Edit `.env` and add your API key. The file supports three providers — pick one:
+
+**OpenRouter (free tier, recommended):**
+```env
+OPENAI_API_KEY=your_openrouter_key_here
+OPENAI_MODEL=deepseek/deepseek-chat-v3.1:free
+OPENAI_BASE_URL=https://openrouter.ai/api/v1
+```
+Get a key at [openrouter.ai/keys](https://openrouter.ai/keys). Free tier allows ~50 requests/day without credit (1000/day with $10+ topped up).
 
 **Google Gemini (free tier):**
 ```env
 OPENAI_API_KEY=your_gemini_key_here
-OPENAI_MODEL=gemini-2.0-flash
+OPENAI_MODEL=gemini-flash-latest
 OPENAI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
 ```
 
