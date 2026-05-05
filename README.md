@@ -4,6 +4,12 @@
 
 Mimeo is a CLI tool that takes a user's description of a website, reasons through the task step-by-step, and generates fully working HTML, CSS, and JavaScript files — ready to open in a browser.
 
+## 🎥 Demo
+
+[![Watch Mimeo CLI in action](https://img.youtube.com/vi/GrNNeKtlBNY/hqdefault.jpg)](https://youtu.be/GrNNeKtlBNY)
+
+A live walkthrough of the agent reasoning loop, file generation, and browser preview — [watch on YouTube](https://youtu.be/GrNNeKtlBNY).
+
 ## ✨ Features
 
 - **Conversational interface** — chat with the agent naturally in your terminal
