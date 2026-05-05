@@ -1,0 +1,21 @@
+# Dependencies — rebuilt from package.json by anyone who clones the repo
+node_modules/
+
+# Secrets — NEVER commit your real API key
+.env
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Generated output from the agent (keep repo clean; user generates their own)
+# Comment the next line out if you WANT to commit a sample output for graders.
+# generated/
