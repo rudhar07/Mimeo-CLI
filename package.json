@@ -12,8 +12,8 @@
     "agent",
     "cli",
     "openai",
-    "scaler",
-    "react-pattern"
+    "website-cloner",
+    "reasoning-agent"
   ],
   "author": "Rudhar Bajaj",
   "license": "MIT",

@@ -17,5 +17,5 @@ Thumbs.db
 .idea/
 
 # Generated output from the agent (keep repo clean; user generates their own)
-# Comment the next line out if you WANT to commit a sample output for graders.
+# Uncomment the next line to commit a sample output.
 # generated/
